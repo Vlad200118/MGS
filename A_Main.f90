@@ -33,7 +33,7 @@ Program Main
   real,allocatable,dimension(:,:,:)::V
   real,allocatable,dimension(:,:)::P, T, Vmagn
   real,allocatable,dimension(:,:) :: RotV
-  real,allocatable,dimension(:,:,:)::GradU, GradV
+  real,allocatable,dimension(:,:,:)::GradU, GradV, GradRotV
   real :: w
   real :: ReFlow
 
@@ -94,7 +94,7 @@ Program Main
   allocate(JFaceVector( NI-1,NJ,2)) ! Face Vectors for I-faces
 
   allocate(RotV( 0:NI,0:NJ))
-  allocate(GradU( 0:NI,0:NJ,2), GradV( 0:NI,0:NJ,2))
+  allocate(GradU( 0:NI,0:NJ,2), GradV(0:NI,0:NJ,2), GradRotV(0:NI,0:NJ,2))
 
 !===  READ GRID ===
   WRITE(*,*) 'Read mesh from file: ', MeshFile
@@ -127,17 +127,20 @@ Program Main
 !=== CALCULATE GRADIENT ===
   WRITE(*,*) 'Calculate gradient U and V'
 
-  If (GGI .EQ. 0) THEN
-    Call B_CalcGradientGG(NI,NJ,V(0:NI,0:NJ,1),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradU)
-    Call B_CalcGradientGG(NI,NJ,V(0:NI,0:NJ,2),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradV)
-  ELSE
-    Call B_CalcGradientGGI(NI,NJ,V(0:NI,0:NJ,1),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradU)
-    Call B_CalcGradientGGI(NI,NJ,V(0:NI,0:NJ,2),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradV)
-  END IF
-
 !=== CALCULATE ROTOR ===
   WRITE(*,*) 'Calculate Rotor V'
     Call B_CalcRotorV(NI,NJ,V,CellVolume,IFaceVector,JFaceVector, IFaceCenter,JFaceCenter,CellCenter,RotV)
+
+
+  If (GGI .EQ. 0) THEN
+    Call B_CalcGradientGG(NI,NJ,V(0:NI,0:NJ,1),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradU)
+    Call B_CalcGradientGG(NI,NJ,V(0:NI,0:NJ,2),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradV)
+    Call B_CalcGradientGG(NI,NJ,RotV(0:NI,0:NJ),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradRotV)
+  ELSE
+    Call B_CalcGradientGGI(NI,NJ,V(0:NI,0:NJ,1),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradU)
+    Call B_CalcGradientGGI(NI,NJ,V(0:NI,0:NJ,2),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradV)
+    Call B_CalcGradientGGI(NI,NJ,RotV(0:NI,0:NJ),CellVolume,IFaceVector,JFaceVector,IFaceCenter,JFaceCenter,CellCenter, GradRotV)
+  END IF
 
   WRITE(*,*) 'Output fields to file: ', ResultFile
   Open(IO,FILE=ResultFile)
@@ -164,10 +167,12 @@ OPEN(I1,FILE =  TimeForce)
 
     IF(InterpolateOrder .EQ. 1) THEN
         Vflow(:) = V(IP,JP,:)
+        w =0.5*RotV(IP,JP)
     ELSE
         CellCenterParticle(:) = CellCenter(IP,JP,:) - r_m(:)
         Vflow(1) = V(IP,JP,1)  + DOT_PRODUCT(CellCenterParticle(:), GradU(IP,JP,:))
         Vflow(2) = V(IP,JP,2)  + DOT_PRODUCT(CellCenterParticle(:), GradV(IP,JP,:))
+        w =0.5*(RotV(IP,JP)+DOT_PRODUCT(CellCenterParticle(:), GradRotV(IP,JP,:)))
     ENDIF
 
     magnV = Magnitude2D(Vflow(:)-V_m(:))
@@ -216,5 +221,6 @@ CLOSE(I1)
   Deallocate (P, V, T)
   Deallocate (GradU, GradV)
 
+    WRITE(*,*) "TNE END"
 
 END PROGRAM Main

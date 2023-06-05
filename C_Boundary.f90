@@ -103,13 +103,12 @@ implicit none
     T = detT / det
 
     IF(S .GE. 0.0  .AND. S .LE. 1.0 .AND. T .GE. 0.0  .AND. T .LE. 1.0 ) THEN
+        !WRITE(*,*)S, T
         rCross(1) = r_m(1) + S * a11
         rCross(2) = r_m(2) + S * a21
         isCrossed = .true.
         return
     END IF
-
-    return
 
 End Subroutine
 
